@@ -19,22 +19,25 @@
         .qotw strong{display:block;margin-bottom:5px;font-size:13px}
     </style>
     <script>
-        // Shutdown server when browser tab/window is closed
-        window.addEventListener('beforeunload', function() {
-            navigator.sendBeacon('/shutdown');
-        });
+        // Only shutdown server when browser tab/window is closed AFTER successful submission
+        var formSubmittedSuccessfully = {% if success %}true{% else %}false{% endif %};
         
-        // Also handle page visibility changes (more reliable for tab closing)
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'hidden') {
-                // Wait a moment to see if user comes back
-                setTimeout(function() {
-                    if (document.visibilityState === 'hidden') {
-                        fetch('/shutdown', {method: 'POST', keepalive: true}).catch(function() {});
-                    }
-                }, 2000);
-            }
-        });
+        if (formSubmittedSuccessfully) {
+            // Only add close detection after successful submission
+            window.addEventListener('beforeunload', function() {
+                navigator.sendBeacon('/shutdown');
+            });
+            
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'hidden') {
+                    setTimeout(function() {
+                        if (document.visibilityState === 'hidden') {
+                            fetch('/shutdown', {method: 'POST', keepalive: true}).catch(function() {});
+                        }
+                    }, 2000);
+                }
+            });
+        }
     </script>
 </head>
 <body>

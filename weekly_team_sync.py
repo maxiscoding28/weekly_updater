@@ -57,8 +57,13 @@ def collect_weekly_responses(qotw=None):
             # Check if any responses have actual content
             has_responses = any(response.strip() for response in responses.values())
             
-            server_running.set()
-            return render_template('template.html', questions=questions, qotw=qotw, success=has_responses, empty_submission=not has_responses)
+            if has_responses:
+                server_running.set()
+                return render_template('template.html', questions=questions, qotw=qotw, success=True, empty_submission=False)
+            else:
+                # Show error for empty submission
+                return render_template('template.html', questions=questions, qotw=qotw, success=False, empty_submission=True)
+        
         return render_template('template.html', questions=questions, qotw=qotw, success=False, empty_submission=False)
     
     @app.route('/shutdown', methods=['GET', 'POST'])
