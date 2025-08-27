@@ -18,12 +18,49 @@
         .qotw{background:#e7f3ff;color:#0c5aa6;padding:12px;border-radius:3px;margin-bottom:15px;border-left:4px solid #0c5aa6}
         .qotw strong{display:block;margin-bottom:5px;font-size:13px}
     </style>
+    <script>
+        // Shutdown server when browser tab/window is closed
+        window.addEventListener('beforeunload', function() {
+            navigator.sendBeacon('/shutdown');
+        });
+        
+        // Also handle page visibility changes (more reliable for tab closing)
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                // Wait a moment to see if user comes back
+                setTimeout(function() {
+                    if (document.visibilityState === 'hidden') {
+                        fetch('/shutdown', {method: 'POST', keepalive: true}).catch(function() {});
+                    }
+                }, 2000);
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="container">
         <h1>Weekly Team Sync</h1>
         {% if success %}
             <div class="success">✅ Responses submitted successfully! You can close this tab.</div>
+        {% elif empty_submission %}
+            <div style="background:#fff3cd;color:#856404;padding:10px;border-radius:3px;margin-bottom:15px;text-align:center;font-size:13px">
+                ⚠️ No responses provided. Please fill out at least one field before submitting.
+            </div>
+            {% if qotw %}
+                <div class="qotw">
+                    <strong>Question of the Week:</strong>
+                    {{ qotw }}
+                </div>
+            {% endif %}
+            <form method="POST">
+                {% for question in questions %}
+                    <div class="q">
+                        <label>{{ loop.index }}. {{ question }}</label>
+                        <textarea name="question_{{ loop.index0 }}" placeholder="Your response..." tabindex="{{ loop.index }}"></textarea>
+                    </div>
+                {% endfor %}
+                <button type="submit" class="btn" tabindex="{{ questions|length + 1 }}">Submit</button>
+            </form>
         {% else %}
             {% if qotw %}
                 <div class="qotw">

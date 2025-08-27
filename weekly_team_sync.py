@@ -49,26 +49,58 @@ def collect_weekly_responses(qotw=None):
     @app.route('/', methods=['GET', 'POST'])
     def index():
         if request.method == 'POST':
+            # Collect responses from form
             for i, question in enumerate(questions):
                 response = request.form.get(f'question_{i}', '').strip()
                 responses[question] = response
+            
+            # Check if any responses have actual content
+            has_responses = any(response.strip() for response in responses.values())
+            
             server_running.set()
-            return render_template('template.html', questions=questions, qotw=qotw, success=True)
-        return render_template('template.html', questions=questions, qotw=qotw, success=False)
+            return render_template('template.html', questions=questions, qotw=qotw, success=has_responses, empty_submission=not has_responses)
+        return render_template('template.html', questions=questions, qotw=qotw, success=False, empty_submission=False)
+    
+    @app.route('/shutdown', methods=['GET', 'POST'])
+    def shutdown():
+        """Allow manual shutdown when browser is closed"""
+        print("\nBrowser closed. Shutting down...")
+        server_running.set()
+        return 'Shutting down...'
+    
+    @app.before_request
+    def check_shutdown():
+        """Check if we should shutdown on connection issues"""
+        pass
     
     port = find_free_port()
     
     def run_server():
-        app.run(port=port, debug=False, use_reloader=False)
+        try:
+            app.run(port=port, debug=False, use_reloader=False, threaded=True)
+        except Exception as e:
+            print(f"Server error: {e}")
+            server_running.set()
     
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
     
     url = f"http://localhost:{port}"
     print(f"Opening web interface at {url}")
+    print("(Close browser tab or press Ctrl+C to exit)")
     webbrowser.open(url)
     
-    server_running.wait()
+    try:
+        # Wait for responses with a timeout to allow checking for shutdown
+        while not server_running.wait(timeout=1.0):
+            # Check if server thread is still alive
+            if not server_thread.is_alive():
+                print("\nServer stopped. Exiting...")
+                break
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+        server_running.set()
+    
     return responses
 
 def format_comment(responses):
